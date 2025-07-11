@@ -1,35 +1,57 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { useEffect, useMemo, useRef } from "react";
+import { Header } from "./components/header/header";
+import { Main } from "./components/main/main";
+import { useLocalStorage } from "./hooks/useLocalStorage/useLocalStorage";
+import { Note } from "./components/note/note";
+import { ThemeContext } from "./context/theme-context/theme-context";
+import { TrashZone } from "./components/trash-zone/trash-zone";
+import { useNotesStore } from "./store/note-store/note-store";
+import { useShallow } from "zustand/shallow";
 
-function App() {
-  const [count, setCount] = useState(0)
+const App = () => {
+	const [theme, setTheme] = useLocalStorage<"light" | "dark">("theme", "light");
+	const mainRef = useRef<HTMLElement>(null);
+	const trashZoneRef = useRef<HTMLDivElement>(null);
 
-  return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
-}
+	const themeContextValue = useMemo(
+		() => ({ theme, setTheme }),
+		[setTheme, theme]
+	);
 
-export default App
+	const { notes, isDragging, isResizing } = useNotesStore(
+		useShallow(state => ({
+			notes: state.notes,
+			isDragging: state.draggingId !== null,
+			isResizing: state.isResizing,
+		}))
+	);
+
+	useEffect(() => {
+		document.documentElement.classList.toggle("dark", theme === "dark");
+	}, [theme]);
+
+	useEffect(() => {
+		document.body.style.userSelect = isDragging || isResizing ? "none" : "";
+	}, [isDragging, isResizing]);
+
+	return (
+		<ThemeContext.Provider value={themeContextValue}>
+			<div className="flex flex-col h-screen bg-[var(--background-color)]">
+				<Header />
+				<Main ref={mainRef}>
+					<TrashZone ref={trashZoneRef} isActive={isDragging} />
+					{notes.map(note => (
+						<Note
+							containerRef={mainRef}
+							trashZoneRef={trashZoneRef}
+							key={note.id}
+							note={note}
+						/>
+					))}
+				</Main>
+			</div>
+		</ThemeContext.Provider>
+	);
+};
+
+export default App;
