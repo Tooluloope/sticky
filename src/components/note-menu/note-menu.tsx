@@ -1,8 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import type { NoteMenuProps } from "./note-menu.type";
-import { colors, fonts } from "../../constants";
+import { useRef, useCallback, useEffect } from "react";
 import { useShallow } from "zustand/shallow";
+import { colors, fonts } from "../../constants";
+import { useDrag } from "../../hooks/useDrag/useDrag";
+import { useResize } from "../../hooks/useResize/useResize";
 import { useNotesStore } from "../../store/note-store/note-store";
+import type { NoteMenuProps } from "./note-menu.type";
+import { useColorAndFontMenu } from "../../hooks/useColorAndFontMenu/useColorAndFontMenu";
 
 export const NoteMenu = ({
 	note,
@@ -10,17 +13,7 @@ export const NoteMenu = ({
 	containerRef,
 	trashZoneRef,
 }: NoteMenuProps) => {
-	const [showPalette, setShowPalette] = useState(false);
-	const [showFont, setShowFont] = useState(false);
-	const [hue, setHue] = useState(56);
-	const startMousePosRef = useRef({ x: 0, y: 0 });
-	const startNotePosRef = useRef({ left: 0, top: 0 });
-	const startDimRef = useRef({ width: 0, height: 0 });
 	const rafIdRef = useRef<number | null>(null);
-	const container = containerRef.current;
-	const trashZone = trashZoneRef.current;
-	const colorPaletteRef = useRef<HTMLDivElement>(null);
-	const fontMenuRef = useRef<HTMLDivElement>(null);
 
 	const {
 		updateNote,
@@ -48,62 +41,39 @@ export const NoteMenu = ({
 
 	const isDragging = draggingId === note.id;
 
-	const onDragStart = (e: React.PointerEvent) => {
-		bringToFront(note.id);
-		startDragging(note.id);
-		startMousePosRef.current = { x: e.clientX, y: e.clientY };
-		startNotePosRef.current = { left: note.left, top: note.top };
-		if (noteContainer) {
-			noteContainer.style.willChange = "transform";
-			noteContainer.style.transform = "translate(0, 0)";
-		}
+	// Use drag hook
+	const dragCallbacks = {
+		bringToFront,
+		startDragging,
+		endDragging,
+		updateNote,
+		deleteNote,
 	};
-
-	const onResizeStart = (e: React.PointerEvent) => {
-		e.stopPropagation();
-		bringToFront(note.id);
-		startResize(note.id);
-		startDimRef.current = { width: note.width, height: note.height };
-		startMousePosRef.current = { x: e.clientX, y: e.clientY };
-	};
-
-	const handleHueChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-		const newHue = Number(e.target.value);
-		setHue(newHue);
-		await updateNote({ ...note, color: `hsl(${newHue}, 85%, 85%)` });
-	};
-
-	const handleDrag = useCallback(
-		(e: PointerEvent) => {
-			if (!isDragging || !container || !noteContainer) return;
-			const deltaX = e.clientX - startMousePosRef.current.x;
-			const deltaY = e.clientY - startMousePosRef.current.y;
-			let newLeft = startNotePosRef.current.left + deltaX;
-			let newTop = startNotePosRef.current.top + deltaY;
-			const cR = container.getBoundingClientRect();
-			const nR = noteContainer.getBoundingClientRect();
-			newLeft = Math.max(0, Math.min(newLeft, cR.width - nR.width));
-			newTop = Math.max(0, Math.min(newTop, cR.height - nR.height));
-			noteContainer.style.transform = `translate(${newLeft - note.left}px, ${
-				newTop - note.top
-			}px)`;
-		},
-		[container, isDragging, note.left, note.top, noteContainer]
+	const { onDragStart, handleDrag, handleDragEnd } = useDrag(
+		note,
+		noteContainer,
+		containerRef,
+		trashZoneRef,
+		dragCallbacks
 	);
 
-	const handleResize = useCallback(
-		(e: PointerEvent) => {
-			if (!isResizing || !noteContainer) return;
-			const deltaX = e.clientX - startMousePosRef.current.x;
-			const deltaY = e.clientY - startMousePosRef.current.y;
-			const newWidth = Math.max(200, startDimRef.current.width + deltaX);
-			const newHeight = Math.max(200, startDimRef.current.height + deltaY);
-			noteContainer.style.width = `${newWidth}px`;
-			noteContainer.style.height = `${newHeight}px`;
-		},
-		[isResizing, noteContainer]
+	// Use resize hook
+	const resizeCallbacks = {
+		bringToFront,
+		startResize,
+		endResize,
+		updateNote,
+	};
+	const { onResizeStart, handleResize, handleResizeEnd } = useResize(
+		note,
+		noteContainer,
+		resizeCallbacks
 	);
 
+	// Use menu hook
+	const menu = useColorAndFontMenu(note, updateNote);
+
+	// Shared pointer movement handler
 	const handleMouseMove = useCallback(
 		(e: PointerEvent) => {
 			if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
@@ -115,123 +85,40 @@ export const NoteMenu = ({
 		[handleDrag, handleResize, isDragging, isResizing]
 	);
 
+	// Shared pointer up handler
 	const handleMouseUp = useCallback(async () => {
 		if (!isDragging && !isResizing) return;
+
 		if (rafIdRef.current) {
 			cancelAnimationFrame(rafIdRef.current);
 			rafIdRef.current = null;
 		}
-		if (isDragging && noteContainer && container && trashZone) {
-			const computed = window.getComputedStyle(noteContainer);
-			const transform = computed.transform;
-			let finalLeft = note.left;
-			let finalTop = note.top;
-			if (transform && transform !== "none") {
-				const matrix = new DOMMatrix(transform);
-				finalLeft = note.left + matrix.m41;
-				finalTop = note.top + matrix.m42;
-			}
-			const containerRect = container.getBoundingClientRect();
-			const noteRect = {
-				left: containerRect.left + finalLeft,
-				top: containerRect.top + finalTop,
-				right: containerRect.left + finalLeft + noteContainer.offsetWidth,
-				bottom: containerRect.top + finalTop + noteContainer.offsetHeight,
-			};
-			const trashRect = trashZone.getBoundingClientRect();
-			if (
-				noteRect.left < trashRect.right &&
-				noteRect.right > trashRect.left &&
-				noteRect.top < trashRect.bottom &&
-				noteRect.bottom > trashRect.top
-			) {
-				deleteNote(note.id);
-				endDragging();
-				return;
-			}
-			await updateNote({ ...note, left: finalLeft, top: finalTop });
-			noteContainer.style.transform = "";
-			noteContainer.style.willChange = "";
-		}
-		if (isResizing && noteContainer) {
-			const { width: rectW, height: rectH } =
-				noteContainer.getBoundingClientRect();
 
-			await updateNote({
-				...note,
-				width: rectW,
-				height: rectH,
-			});
-		}
+		if (isDragging) await handleDragEnd();
+		if (isResizing) await handleResizeEnd();
+
 		endDragging();
 		endResize();
 	}, [
-		container,
-		deleteNote,
-		endDragging,
-		endResize,
 		isDragging,
 		isResizing,
-		note,
-		noteContainer,
-		trashZone,
-		updateNote,
+		handleDragEnd,
+		handleResizeEnd,
+		endDragging,
+		endResize,
 	]);
 
+	// Event listeners setup
 	useEffect(() => {
 		document.addEventListener("pointermove", handleMouseMove);
 		document.addEventListener("pointerup", handleMouseUp);
+
 		return () => {
 			document.removeEventListener("pointermove", handleMouseMove);
 			document.removeEventListener("pointerup", handleMouseUp);
 			if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
 		};
 	}, [handleMouseMove, handleMouseUp]);
-
-	useEffect(() => {
-		const onClickOutside = (e: MouseEvent) => {
-			if (
-				showPalette &&
-				colorPaletteRef.current &&
-				!colorPaletteRef.current.contains(e.target as Node)
-			)
-				setShowPalette(false);
-
-			if (
-				showFont &&
-				fontMenuRef.current &&
-				!fontMenuRef.current.contains(e.target as Node)
-			)
-				setShowFont(false);
-		};
-		document.addEventListener("mousedown", onClickOutside);
-		return () => document.removeEventListener("mousedown", onClickOutside);
-	}, [showPalette, showFont]);
-
-	const pendingSize = useRef<{ width: number; height: number } | null>(null);
-	useEffect(() => {
-		if (!noteContainer) return;
-		const ro = new ResizeObserver(entries => {
-			const { width, height } = entries[0].contentRect;
-			pendingSize.current = { width, height };
-		});
-		ro.observe(noteContainer);
-		return () => ro.disconnect();
-	}, [noteContainer]);
-
-	useEffect(() => {
-		const onPointerUp = () => {
-			if (pendingSize.current) {
-				const { width, height } = pendingSize.current;
-				updateNote({ ...note, width, height });
-				pendingSize.current = null;
-			}
-		};
-		document.addEventListener("pointerup", onPointerUp);
-		return () => {
-			document.removeEventListener("pointerup", onPointerUp);
-		};
-	}, [note, updateNote]);
 
 	return (
 		<div
@@ -251,8 +138,8 @@ export const NoteMenu = ({
 				<div className="relative">
 					<button
 						onClick={() => {
-							setShowPalette(prev => !prev);
-							setShowFont(false);
+							menu.setShowPalette(prev => !prev);
+							menu.setShowFont(false);
 						}}
 						className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-[var(--note-menu-hover)] transition-colors cursor-pointer"
 					>
@@ -260,9 +147,9 @@ export const NoteMenu = ({
 							palette
 						</span>
 					</button>
-					{showPalette && (
+					{menu.showPalette && (
 						<div
-							ref={colorPaletteRef}
+							ref={menu.colorPaletteRef}
 							className="color-palette-container absolute bottom-full mb-2 bg-[var(--palette-bg)] p-3 rounded-lg shadow-lg transition-colors border border-[var(--border-color)]"
 						>
 							<div
@@ -279,7 +166,7 @@ export const NoteMenu = ({
 										style={{ backgroundColor: c }}
 										onClick={async () => {
 											await updateNote({ ...note, color: c });
-											setShowPalette(false);
+											menu.setShowPalette(false);
 										}}
 									/>
 								))}
@@ -295,8 +182,8 @@ export const NoteMenu = ({
 								type="range"
 								min="0"
 								max="360"
-								value={hue}
-								onChange={handleHueChange}
+								value={menu.hue}
+								onChange={menu.handleHueChange}
 								className="color-slider"
 							/>
 						</div>
@@ -305,8 +192,8 @@ export const NoteMenu = ({
 				<div className="relative">
 					<button
 						onClick={() => {
-							setShowFont(prev => !prev);
-							setShowPalette(false);
+							menu.setShowFont(prev => !prev);
+							menu.setShowPalette(false);
 						}}
 						className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-[var(--note-menu-hover)] transition-colors cursor-pointer"
 					>
@@ -314,9 +201,9 @@ export const NoteMenu = ({
 							title
 						</span>
 					</button>
-					{showFont && (
+					{menu.showFont && (
 						<div
-							ref={fontMenuRef}
+							ref={menu.fontMenuRef}
 							className="absolute bottom-full mb-2 flex flex-col gap-1 bg-[var(--font-selector-bg)] p-2 rounded-lg shadow-md w-36 transition-colors"
 						>
 							{fonts.map(opt => (
@@ -326,7 +213,7 @@ export const NoteMenu = ({
 									style={{ fontFamily: opt.font }}
 									onClick={async () => {
 										await updateNote({ ...note, font: opt.font });
-										setShowFont(false);
+										menu.setShowFont(false);
 									}}
 								>
 									{opt.label}

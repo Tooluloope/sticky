@@ -40,7 +40,6 @@ body {
 .note-container {
 	box-shadow: 0 10px 15px -3px var(--shadow-color),
 		0 4px 6px -2px var(--shadow-color);
-	resize: both;
 	overflow: hidden;
 	color: #1f2937;
 }
