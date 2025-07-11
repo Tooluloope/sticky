@@ -11,6 +11,7 @@ const fakeDelay = (ms = 50) => new Promise(resolve => setTimeout(resolve, ms));
 type NotesState = {
 	notes: NoteData[];
 	draggingId: string | null;
+	resizingId: string | null;
 	isResizing: boolean;
 	startResize: (id: string) => void;
 	endResize: () => void;
@@ -29,16 +30,18 @@ export const useNotesStore = create<NotesState>()(
 			notes: [],
 			highestZ: 10,
 			draggingId: null,
+			resizingId: null,
 			isResizing: false,
 			startResize: id => {
 				const note = get().notes.find(n => n.id === id);
 				if (note) {
 					set({
 						isResizing: true,
+						resizingId: id,
 					});
 				}
 			},
-			endResize: () => set({ isResizing: false }),
+			endResize: () => set({ isResizing: false, resizingId: null }),
 
 			addNote: async () => {
 				await fakeDelay();

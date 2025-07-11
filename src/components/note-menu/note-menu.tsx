@@ -40,7 +40,7 @@ export const NoteMenu = ({
 			startDragging: state.startDragging,
 			endDragging: state.endDragging,
 			startResize: state.startResize,
-			isResizing: state.isResizing,
+			isResizing: state.isResizing && state.resizingId === note.id,
 			endResize: state.endResize,
 			draggingId: state.draggingId,
 		}))
@@ -154,11 +154,14 @@ export const NoteMenu = ({
 			noteContainer.style.willChange = "";
 		}
 		if (isResizing && noteContainer) {
-			const finalWidth = parseFloat(noteContainer.style.width) || note.width;
-			const finalHeight = parseFloat(noteContainer.style.height) || note.height;
-			await updateNote({ ...note, width: finalWidth, height: finalHeight });
-			noteContainer.style.width = "";
-			noteContainer.style.height = "";
+			const { width: rectW, height: rectH } =
+				noteContainer.getBoundingClientRect();
+
+			await updateNote({
+				...note,
+				width: rectW,
+				height: rectH,
+			});
 		}
 		endDragging();
 		endResize();
@@ -204,6 +207,31 @@ export const NoteMenu = ({
 		document.addEventListener("mousedown", onClickOutside);
 		return () => document.removeEventListener("mousedown", onClickOutside);
 	}, [showPalette, showFont]);
+
+	const pendingSize = useRef<{ width: number; height: number } | null>(null);
+	useEffect(() => {
+		if (!noteContainer) return;
+		const ro = new ResizeObserver(entries => {
+			const { width, height } = entries[0].contentRect;
+			pendingSize.current = { width, height };
+		});
+		ro.observe(noteContainer);
+		return () => ro.disconnect();
+	}, [noteContainer]);
+
+	useEffect(() => {
+		const onPointerUp = () => {
+			if (pendingSize.current) {
+				const { width, height } = pendingSize.current;
+				updateNote({ ...note, width, height });
+				pendingSize.current = null;
+			}
+		};
+		document.addEventListener("pointerup", onPointerUp);
+		return () => {
+			document.removeEventListener("pointerup", onPointerUp);
+		};
+	}, [note, updateNote]);
 
 	return (
 		<div
