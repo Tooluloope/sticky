@@ -45,4 +45,7 @@ Pointer events manage dragging and resizing, and `requestAnimationFrame` updates
     ```bash
     pnpm test
     ```
+7. **Live Demo**
+    The app is also deployed and can be tried out at: [https://sticky-alpha.vercel.app/](https://sticky-alpha.vercel.app/)
+  
 
