@@ -41,7 +41,6 @@ export const NoteMenu = ({
 
 	const isDragging = draggingId === note.id;
 
-	// Use drag hook
 	const dragCallbacks = {
 		bringToFront,
 		startDragging,
@@ -57,7 +56,6 @@ export const NoteMenu = ({
 		dragCallbacks
 	);
 
-	// Use resize hook
 	const resizeCallbacks = {
 		bringToFront,
 		startResize,
@@ -70,10 +68,8 @@ export const NoteMenu = ({
 		resizeCallbacks
 	);
 
-	// Use menu hook
 	const menu = useColorAndFontMenu(note, updateNote);
 
-	// Shared pointer movement handler
 	const handleMouseMove = useCallback(
 		(e: PointerEvent) => {
 			if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
@@ -85,7 +81,6 @@ export const NoteMenu = ({
 		[handleDrag, handleResize, isDragging, isResizing]
 	);
 
-	// Shared pointer up handler
 	const handleMouseUp = useCallback(async () => {
 		if (!isDragging && !isResizing) return;
 
@@ -108,7 +103,6 @@ export const NoteMenu = ({
 		endResize,
 	]);
 
-	// Event listeners setup
 	useEffect(() => {
 		document.addEventListener("pointermove", handleMouseMove);
 		document.addEventListener("pointerup", handleMouseUp);
