@@ -51,7 +51,7 @@ export const useNotesStore = create<NotesState>()(
 				const note: NoteData = {
 					id: newId,
 					title: `Note ${notes.length + 1}`,
-					content: "Start typing your note...",
+					content: "",
 					top: 32 + (notes.length % 10) * 8,
 					left: 32 + (notes.length % 10) * 8,
 					width: 384,

@@ -18,6 +18,7 @@ export const NoteContent = ({ note }: NoteContentProps) => {
 			name="note-content"
 			className="note-content flex-grow w-full p-4 text-lg text-gray-800 resize-none outline-0"
 			value={content}
+			placeholder="Start typing your note..."
 			onChange={e => setContent(e.target.value)}
 			onBlur={handleBlur}
 			rows={Math.max(3, Math.floor(note.height / 24))}
