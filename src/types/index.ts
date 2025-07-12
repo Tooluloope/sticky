@@ -8,6 +8,7 @@ export type NoteData = {
 	height: number;
 	color: string;
 	font: string;
+	fontSize: number;
 	zIndex: number;
 };
 

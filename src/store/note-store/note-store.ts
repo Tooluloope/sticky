@@ -58,6 +58,7 @@ export const useNotesStore = create<NotesState>()(
 					height: 320,
 					color: "#fefcbf",
 					font: "'Spline Sans', sans-serif",
+					fontSize: 1,
 					zIndex: newZ,
 				};
 				set({

@@ -122,6 +122,8 @@ export const NoteMenu = ({
 		>
 			<div className="flex items-center gap-1">
 				<button
+					aria-label="Drag Note"
+					title="Drag Note"
 					onPointerDown={onDragStart}
 					className="drag-handle w-8 h-8 flex items-center justify-center rounded-full hover:bg-[var(--note-menu-hover)] transition-colors cursor-move"
 				>
@@ -131,10 +133,9 @@ export const NoteMenu = ({
 				</button>
 				<div className="relative">
 					<button
-						onClick={() => {
-							menu.setShowPalette(prev => !prev);
-							menu.setShowFont(false);
-						}}
+						onClick={() => menu.toggleMenu("palette")}
+						aria-label="Change Color"
+						title="Change Color"
 						className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-[var(--note-menu-hover)] transition-colors cursor-pointer"
 					>
 						<span className="material-symbols-outlined text-[var(--icon-color)]">
@@ -158,9 +159,11 @@ export const NoteMenu = ({
 											c === note.color ? "active" : "border-transparent"
 										}`}
 										style={{ backgroundColor: c }}
+										aria-label={`Change color to ${c}`}
+										title={`Change color to ${c}`}
 										onClick={async () => {
 											await updateNote({ ...note, color: c });
-											menu.setShowPalette(false);
+											menu.toggleMenu("palette");
 										}}
 									/>
 								))}
@@ -185,10 +188,9 @@ export const NoteMenu = ({
 				</div>
 				<div className="relative">
 					<button
-						onClick={() => {
-							menu.setShowFont(prev => !prev);
-							menu.setShowPalette(false);
-						}}
+						onClick={() => menu.toggleMenu("font")}
+						aria-label="Change Font"
+						title="Change Font"
 						className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-[var(--note-menu-hover)] transition-colors cursor-pointer"
 					>
 						<span className="material-symbols-outlined text-[var(--icon-color)]">
@@ -207,7 +209,7 @@ export const NoteMenu = ({
 									style={{ fontFamily: opt.font }}
 									onClick={async () => {
 										await updateNote({ ...note, font: opt.font });
-										menu.setShowFont(false);
+										menu.toggleMenu("font");
 									}}
 								>
 									{opt.label}
@@ -216,8 +218,42 @@ export const NoteMenu = ({
 						</div>
 					)}
 				</div>
+				<div className=" relative">
+					<button
+						aria-label="Change Font Size"
+						className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-[var(--note-menu-hover)] transition-colors cursor-pointer"
+						title="Change Font Size"
+						onClick={() => menu.toggleMenu("size")}
+					>
+						<span className="material-symbols-outlined text-[var(--icon-color)]">
+							format_size
+						</span>
+					</button>
+					{menu.showFontSize && (
+						<div
+							ref={menu.fontSizeRef}
+							className="font-size-selector absolute bottom-full mb-2 bg-[var(--font-size-selector-bg)] p-3 rounded-lg shadow-lg transition-colors border border-[var(--border-color)] w-40"
+						>
+							<input
+								className="font-size-slider"
+								id="font-size-slider"
+								aria-label="Font Size Slider"
+								title="Font Size Slider"
+								name="fontSize"
+								max="1.5"
+								min="0.75"
+								step="0.05"
+								type="range"
+								value={note.fontSize}
+								onChange={menu.handleFontSizeChange}
+							/>
+						</div>
+					)}
+				</div>
 				<button
 					onClick={() => bringToFront(note.id)}
+					aria-label="Bring to Front"
+					title="Bring to Front"
 					className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-[var(--note-menu-hover)] transition-colors cursor-pointer"
 				>
 					<span className="material-symbols-outlined text-[var(--icon-color)]">
@@ -225,6 +261,8 @@ export const NoteMenu = ({
 					</span>
 				</button>
 				<button
+					aria-label="Delete Note"
+					title="Delete Note"
 					onClick={async () => await deleteNote(note.id)}
 					className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-red-200 transition-colors cursor-pointer"
 				>
