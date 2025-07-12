@@ -23,6 +23,7 @@ export const mockNote = {
 	content: "This is a test note content.",
 	font: "'Spline Sans', sans-serif",
 	zIndex: 10,
+	fontSize: 1,
 };
 
 export const mockContainer = document.createElement("div");
